@@ -351,6 +351,71 @@
     .halving-event .ev-reward { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; }
 
     .error-msg { color: rgba(255,100,100,0.7); font-size: 13px; text-align: center; margin-top: 10px; }
+
+    /* Chart card */
+    .chart-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(247,147,26,0.2);
+      border-radius: 24px;
+      padding: 30px;
+      margin-bottom: 30px;
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+    }
+    .chart-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(247,147,26,0.6), transparent);
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .chart-title {
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+    }
+    .chart-tabs {
+      display: flex;
+      gap: 8px;
+    }
+    .chart-tab {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(247,147,26,0.2);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.4);
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-tab:hover { border-color: rgba(247,147,26,0.5); color: #f7931a; }
+    .chart-tab.active { background: rgba(247,147,26,0.15); border-color: #f7931a; color: #f7931a; }
+    .chart-canvas-wrap {
+      position: relative;
+      height: 240px;
+    }
+    #priceChart { width: 100% !important; height: 100% !important; }
+    .chart-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.3);
+      font-size: 13px;
+      letter-spacing: 2px;
+    }
   </style>
 </head>
 <body>
@@ -391,6 +456,23 @@
     </div>
     <div class="live-dot">Live via CoinGecko</div>
     <div class="error-msg" id="price-error"></div>
+  </div>
+
+  <!-- Live Chart -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">📈 Bitcoin Prijsgrafiek (USD)</div>
+      <div class="chart-tabs">
+        <button class="chart-tab active" data-days="1">1D</button>
+        <button class="chart-tab" data-days="7">1W</button>
+        <button class="chart-tab" data-days="30">1M</button>
+        <button class="chart-tab" data-days="365">1J</button>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <div class="chart-loading" id="chart-loading">Grafiek laden...</div>
+      <canvas id="priceChart"></canvas>
+    </div>
   </div>
 
   <!-- Halving grid -->
@@ -464,7 +546,125 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+  // --- Live chart ---
+  let priceChart = null;
+  let activeTab = 1;
+
+  async function loadChart(days) {
+    document.getElementById('chart-loading').style.display = 'flex';
+    try {
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}`,
+        { cache: 'no-store' }
+      );
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const prices = data.prices;
+
+      const labels = prices.map(p => {
+        const d = new Date(p[0]);
+        if (days <= 1)   return d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+        if (days <= 7)   return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric' });
+        if (days <= 30)  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+        return d.toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' });
+      });
+      const values = prices.map(p => p[1]);
+
+      const isUp = values[values.length - 1] >= values[0];
+      const lineColor = isUp ? '#00ff88' : '#ff4466';
+      const gradColor = isUp ? 'rgba(0,255,136,' : 'rgba(255,68,102,';
+
+      const ctx = document.getElementById('priceChart').getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+      gradient.addColorStop(0, gradColor + '0.3)');
+      gradient.addColorStop(1, gradColor + '0)');
+
+      const chartData = {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: lineColor,
+          borderWidth: 2,
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: lineColor,
+        }]
+      };
+
+      if (priceChart) {
+        priceChart.data = chartData;
+        priceChart.update('none');
+      } else {
+        priceChart = new Chart(ctx, {
+          type: 'line',
+          data: chartData,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(10,10,15,0.9)',
+                borderColor: 'rgba(247,147,26,0.4)',
+                borderWidth: 1,
+                titleColor: 'rgba(255,255,255,0.5)',
+                bodyColor: '#f7931a',
+                bodyFont: { family: 'Orbitron', size: 14, weight: '700' },
+                callbacks: {
+                  label: ctx => '$' + Number(ctx.parsed.y).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: 'rgba(255,255,255,0.25)',
+                  maxTicksLimit: 6,
+                  font: { size: 10 },
+                  maxRotation: 0
+                },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                border: { color: 'rgba(255,255,255,0.08)' }
+              },
+              y: {
+                position: 'right',
+                ticks: {
+                  color: 'rgba(255,255,255,0.25)',
+                  font: { size: 10 },
+                  callback: v => '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
+                },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                border: { color: 'rgba(255,255,255,0.08)' }
+              }
+            }
+          }
+        });
+      }
+    } catch {
+      document.getElementById('chart-loading').textContent = 'Grafiek niet beschikbaar';
+      return;
+    }
+    document.getElementById('chart-loading').style.display = 'none';
+  }
+
+  document.querySelectorAll('.chart-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = Number(btn.dataset.days);
+      loadChart(activeTab);
+    });
+  });
+
+  loadChart(1);
+  setInterval(() => loadChart(activeTab), 60000);
+
   // --- Halving countdown ---
   // Next halving estimated around April 2028 (~block 1,050,000)
   // Based on ~10 min/block from block 840,000 (Apr 19 2024)
