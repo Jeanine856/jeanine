@@ -437,7 +437,7 @@
 
   <!-- Live Price -->
   <div class="price-card">
-    <div class="price-label">Bitcoin Prijs (USD)</div>
+    <div class="price-label">Bitcoin Prijs (USDT)</div>
     <div class="price-value" id="price">Laden...</div>
     <div class="price-change" id="price-change"></div>
     <div class="price-meta">
@@ -454,14 +454,14 @@
         <div class="value" id="volume">—</div>
       </div>
     </div>
-    <div class="live-dot">Live via CoinGecko</div>
+    <div class="live-dot">Live via CoinGecko · USDT</div>
     <div class="error-msg" id="price-error"></div>
   </div>
 
   <!-- Live Chart -->
   <div class="chart-card">
     <div class="chart-header">
-      <div class="chart-title">📈 Bitcoin Prijsgrafiek (USD)</div>
+      <div class="chart-title">📈 Bitcoin Prijsgrafiek (USDT)</div>
       <div class="chart-tabs">
         <button class="chart-tab active" data-days="1">1D</button>
         <button class="chart-tab" data-days="7">1W</button>
@@ -556,7 +556,7 @@
     document.getElementById('chart-loading').style.display = 'flex';
     try {
       const res = await fetch(
-        `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=${days}`,
+        `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usdt&days=${days}`,
         { cache: 'no-store' }
       );
       if (!res.ok) throw new Error();
@@ -617,7 +617,7 @@
                 bodyColor: '#f7931a',
                 bodyFont: { family: 'Orbitron', size: 14, weight: '700' },
                 callbacks: {
-                  label: ctx => '$' + Number(ctx.parsed.y).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  label: ctx => '₮' + Number(ctx.parsed.y).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 }
               }
             },
@@ -637,7 +637,7 @@
                 ticks: {
                   color: 'rgba(255,255,255,0.25)',
                   font: { size: 10 },
-                  callback: v => '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
+                  callback: v => '₮' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })
                 },
                 grid: { color: 'rgba(255,255,255,0.04)' },
                 border: { color: 'rgba(255,255,255,0.08)' }
@@ -720,19 +720,19 @@
   let lastPrice = null;
 
   function fmt(n) {
-    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '₮' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function fmtVol(n) {
-    if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
-    if (n >= 1e6) return '$' + (n / 1e6).toFixed(0) + 'M';
-    return '$' + Number(n).toLocaleString();
+    if (n >= 1e9) return '₮' + (n / 1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return '₮' + (n / 1e6).toFixed(0) + 'M';
+    return '₮' + Number(n).toLocaleString();
   }
 
   async function fetchPrice() {
     try {
       const res = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_high_24hr=true&include_low_24hr=true',
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usdt&include_24hr_change=true&include_24hr_vol=true&include_high_24hr=true&include_low_24hr=true',
         { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('API fout');
@@ -742,7 +742,7 @@
       const priceEl  = document.getElementById('price');
       const changeEl = document.getElementById('price-change');
 
-      const newPrice = btc.usd;
+      const newPrice = btc.usdt;
       priceEl.textContent = fmt(newPrice);
 
       if (lastPrice !== null && newPrice !== lastPrice) {
@@ -752,14 +752,14 @@
       }
       lastPrice = newPrice;
 
-      const chg = btc.usd_24h_change;
+      const chg = btc.usdt_24h_change;
       const sign = chg >= 0 ? '▲ +' : '▼ ';
       changeEl.textContent = sign + chg.toFixed(2) + '% (24u)';
       changeEl.className = 'price-change ' + (chg >= 0 ? 'up' : 'down');
 
-      document.getElementById('high24').textContent   = fmt(btc.usd_24h_high);
-      document.getElementById('low24').textContent    = fmt(btc.usd_24h_low);
-      document.getElementById('volume').textContent   = fmtVol(btc.usd_24h_vol);
+      document.getElementById('high24').textContent   = fmt(btc.usdt_24h_high);
+      document.getElementById('low24').textContent    = fmt(btc.usdt_24h_low);
+      document.getElementById('volume').textContent   = fmtVol(btc.usdt_24h_vol);
       document.getElementById('price-error').textContent = '';
 
     } catch (e) {
